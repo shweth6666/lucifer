@@ -729,10 +729,10 @@
         </main>
     </div>
 
-    <!-- MODAL: ADD USER -->
+    <!-- MODAL: ADD/EDIT USER -->
     <div id="userModal" class="modal-overlay">
         <div class="modal">
-            <h2>Register New User</h2>
+            <h2 id="userModalTitle">Register New User</h2>
             <form id="userForm">
                 <div class="form-group">
                     <label>Full Name</label>
@@ -745,7 +745,8 @@
                     </div>
                     <div class="form-group">
                         <label>Password</label>
-                        <input type="password" id="u_password" placeholder="••••••••" required>
+                        <input type="password" id="u_password" placeholder="••••••••">
+                        <small id="pw_hint" style="display:none; color:var(--text-dim); font-size:11px;">Leave blank to keep current password</small>
                     </div>
                 </div>
                 <div class="form-group">
@@ -914,8 +915,21 @@
             if (tabId === 'reports') loadAttendanceSessions();
         }
 
-        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
-        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        function openModal(id) { 
+            if (id === 'userModal' && !window.editingUserId) {
+                document.getElementById('userModalTitle').innerText = "Register New User";
+                document.getElementById('userForm').reset();
+                document.getElementById('pw_hint').style.display = 'none';
+                document.getElementById('u_password').required = true;
+            }
+            document.getElementById(id).style.display = 'flex'; 
+        }
+        function closeModal(id) { 
+            if (id === 'userModal') {
+                window.editingUserId = null;
+            }
+            document.getElementById(id).style.display = 'none'; 
+        }
 
         // --- DATA FETCHING ---
 
@@ -957,6 +971,7 @@
                     <td style="font-family: monospace">${u.roll_no || u.semester || '--'}</td>
                     <td style="display: flex; gap: 10px;">
                         ${u.role === 'student' ? `<button class="btn-icon" title="Reset Device Link" onclick="resetDevice(${u.id})"><i data-lucide="shield-off"></i></button>` : ''}
+                        <button class="btn-icon" title="Edit User" onclick="editUser(${u.id})"><i data-lucide="edit-3"></i></button>
                         <button class="btn-icon delete" title="Delete User" onclick="deleteUser(${u.id})"><i data-lucide="trash-2"></i></button>
                     </td>
                 </tr>
@@ -984,6 +999,26 @@
                 window.allUsers = data.users; // Store to filter later
                 filterUsers('all');
             }
+        }
+
+        function editUser(userId) {
+            const user = window.allUsers.find(u => u.id === userId);
+            if (!user) return;
+
+            window.editingUserId = userId;
+            document.getElementById('userModalTitle').innerText = "Edit User: " + user.name;
+            
+            document.getElementById('u_name').value = user.name || '';
+            document.getElementById('u_username').value = user.username || '';
+            document.getElementById('u_password').value = ''; // Don't show hashed password
+            document.getElementById('u_password').required = false;
+            document.getElementById('pw_hint').style.display = 'block';
+            document.getElementById('u_role').value = user.role;
+            document.getElementById('u_branch').value = user.branch || '';
+            document.getElementById('u_roll').value = user.roll_no || user.semester || '';
+            
+            updateRoleFields();
+            openModal('userModal');
         }
 
         function filterUsers(role) {
@@ -1041,21 +1076,30 @@
         document.getElementById('userForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const role = document.getElementById('u_role').value;
-            // Depending on role, the u_roll input might contain email vs roll number.
             const rollOrEmail = document.getElementById('u_roll').value;
+            const password = document.getElementById('u_password').value;
 
             const body = {
                 username: document.getElementById('u_username').value,
-                password: document.getElementById('u_password').value,
                 role: role,
                 name: document.getElementById('u_name').value,
                 branch: document.getElementById('u_branch').value,
-                roll_no: rollOrEmail, // Just passing it as roll_no to backend for simplicity since backend DB is flexible
-                semester: role === 'student' ? 'S6' : null
+                roll_no: rollOrEmail,
+                semester: role === 'student' ? (document.getElementById('u_roll').value.includes('S') ? document.getElementById('u_roll').value : 'S6') : null
             };
 
-            const res = await fetch(`${API_BASE}/admin/users`, {
-                method: 'POST',
+            if (password) body.password = password;
+
+            let url = `${API_BASE}/admin/users`;
+            let method = 'POST';
+
+            if (window.editingUserId) {
+                url += `/${window.editingUserId}`;
+                method = 'PUT';
+            }
+
+            const res = await fetch(url, {
+                method: method,
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
                 body: JSON.stringify(body)
             });
@@ -1064,6 +1108,7 @@
                 closeModal('userModal');
                 loadUsers();
                 e.target.reset();
+                window.editingUserId = null;
             } else alert(data.message);
         });
 

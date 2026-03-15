@@ -33,7 +33,7 @@ cipher_suite = Fernet(b'ZmDfcTF7_60GrrY167zsiPd67pEvs0aGOv2oasOM1Pg=')
 DATABASE_CONFIG = {
     "host": "localhost",
     "user": "root",
-    "password": "Delvin@2005",
+    "password": "123456",
     "database": "qr_attendence"
 }
 
