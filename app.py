@@ -213,7 +213,13 @@ def init_db():
 
     conn.close()
 
-init_db()
+# 🚀 Initialize DB with error handling to prevent startup crash
+try:
+    init_db()
+    print("✅ Database initialized successfully.")
+except Exception as e:
+    print(f"⚠️ Warning: Database initialization failed. Check your DB environment variables.")
+    print(f"Error details: {e}")
 
 # 📍 Distance calculation (Haversine)
 def haversine(lat1, lon1, lat2, lon2):
