@@ -129,6 +129,16 @@ def init_db():
     )
     """)
 
+    # 6. Faculty-Subjects Table
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS faculty_subjects (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        faculty_id INT,
+        subject_name VARCHAR(255),
+        FOREIGN KEY (faculty_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    """)
+
     conn.commit()
 
     # 🚀 Auto-seed default users if database is empty
@@ -186,28 +196,40 @@ def init_db():
             with open(csv_path, newline='', encoding="utf-8") as f:
                 reader = csv.DictReader(f)
                 for row in reader:
-                    cur.execute("SELECT 1 FROM users WHERE username=%s", (row["username"],))
-                    if cur.fetchone():
-                        continue
-
-                    semester = row.get("semester", "N/A")
-                    branch = row.get("branch", "N/A")
-                    name = row.get("name", "N/A")
+                    # 1. Ensure user exists
+                    cur.execute("SELECT id FROM users WHERE username=%s", (row["username"],))
+                    user_record = cur.fetchone()
                     
-                    cur.execute("""
-                        INSERT INTO users 
-                        (username, password, role, name, branch, semester)
-                        VALUES (%s, %s, %s, %s, %s, %s)
-                    """, (
-                        row["username"],
-                        generate_password_hash(row["password"]),
-                        "faculty",
-                        name,
-                        branch,
-                        semester
-                    ))
+                    if not user_record:
+                        semester = row.get("semester", "N/A")
+                        branch = row.get("branch", "N/A")
+                        name = row.get("name", "N/A")
+                        
+                        cur.execute("""
+                            INSERT INTO users 
+                            (username, password, role, name, branch, semester)
+                            VALUES (%s, %s, %s, %s, %s, %s)
+                        """, (
+                            row["username"],
+                            generate_password_hash(row["password"]),
+                            "faculty",
+                            name,
+                            branch,
+                            semester
+                        ))
+                        faculty_id = cur.lastrowid
+                    else:
+                        faculty_id = user_record["id"]
+                    
+                    # 2. Sync Subjects (Add if not already linked)
+                    subj = row.get("subject name")
+                    if subj:
+                        cur.execute("SELECT 1 FROM faculty_subjects WHERE faculty_id = %s AND subject_name = %s", (faculty_id, subj))
+                        if not cur.fetchone():
+                            cur.execute("INSERT INTO faculty_subjects (faculty_id, subject_name) VALUES (%s, %s)", (faculty_id, subj))
+            
             conn.commit()
-            print("Faculty CSV data imported successfully.")
+            print("Faculty subjects synced successfully.")
     except Exception as e:
         print(f"Error importing faculty: {e}")
 
@@ -332,6 +354,16 @@ def create_session():
 
     conn = get_db()
     cur = conn.cursor(dictionary=True)
+
+    # 🔒 Authorization Check: Can this faculty teach this subject?
+    if claims.get("role") == "faculty":
+        cur.execute("SELECT 1 FROM faculty_subjects WHERE faculty_id = %s AND subject_name = %s", (faculty_id, subject))
+        if not cur.fetchone():
+            conn.close()
+            return jsonify({
+                "success": False, 
+                "message": f"Unauthorized: You are not assigned to teach '{subject}'. Please contact admin."
+            }), 403
     cur.execute(
         """
         INSERT INTO sessions (faculty_id, branch, semester, subject, start_time, latitude, longitude, expires_at, radius)
