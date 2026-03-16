@@ -1,17 +1,11 @@
 import mysql.connector
 
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
-
 try:
     conn = mysql.connector.connect(
-        host=os.getenv("MYSQL_HOST", "localhost"),
-        user=os.getenv("MYSQL_USER", "root"),
-        password=os.getenv("MYSQL_PASSWORD", "123456"),
-        database=os.getenv("MYSQL_DATABASE", "qr_attendence"),
-        port=int(os.getenv("MYSQL_PORT", 3306))
+        host="localhost",       # or your server IP
+        user="root",            # your mysql username
+        password="123456",
+        database="qr_attendence"       # your database name
     )
 
     print("Connected successfully!")
