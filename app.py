@@ -1077,7 +1077,7 @@ def export_report():
         cutoff = now - timedelta(days=30)
 
     conn = get_db()
-    cur = conn.cursor()
+    cur = conn.cursor(dictionary=True)
 
     query = """
         SELECT 
