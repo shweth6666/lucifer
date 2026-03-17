@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Report | Smart Attendance</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.4);
+            --bg: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
+
+        body {
+            background: var(--bg);
+            color: #f8fafc;
+            min-height: 100vh;
+            padding-bottom: 40px;
+            background-image: radial-gradient(circle at 10% 10%, #1e1b4b 0%, #0f172a 100%);
+        }
+
+        /* Header */
+        .header {
+            padding: 25px 20px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .back-btn {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--glass-border);
+            color: white;
+            width: 40px; height: 40px;
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; text-decoration: none;
+            transition: 0.2s;
+            flex-shrink: 0;
+        }
+        .back-btn:hover { background: rgba(255,255,255,0.1); }
+
+        .header-text h1 { font-size: 22px; font-weight: 700; }
+        .header-text p { font-size: 13px; color: #94a3b8; margin-top: 2px; }
+
+        .container { padding: 20px; max-width: 800px; margin: 0 auto; }
+
+        /* Overall Card */
+        .overall-card {
+            background: linear-gradient(135deg, rgba(99,102,241,0.2) 0%, rgba(30,41,59,0.7) 100%);
+            border: 1px solid rgba(99,102,241,0.3);
+            border-radius: 24px;
+            padding: 25px;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .overall-info h2 { font-size: 14px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+        .overall-info .big-perc { font-size: 48px; font-weight: 800; margin: 5px 0; }
+        .overall-info .sub { font-size: 13px; color: #94a3b8; }
+
+        .status-badge {
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 13px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .status-safe { background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
+        .status-warn { background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+        .status-danger { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+
+        /* Section Title */
+        .section-title {
+            font-size: 17px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #e2e8f0;
+        }
+        .section-title i { color: var(--primary); width: 20px; }
+
+        /* Subject Cards */
+        .subject-list { display: flex; flex-direction: column; gap: 14px; margin-bottom: 30px; }
+
+        .subject-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 18px;
+            padding: 18px 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            transition: 0.2s;
+        }
+        .subject-card:hover { border-color: rgba(255,255,255,0.2); transform: translateY(-1px); }
+
+        .subj-icon {
+            width: 44px; height: 44px;
+            border-radius: 12px;
+            background: rgba(99,102,241,0.1);
+            border: 1px solid rgba(99,102,241,0.2);
+            display: flex; align-items: center; justify-content: center;
+            color: var(--primary);
+            flex-shrink: 0;
+        }
+
+        .subj-info { flex: 1; }
+        .subj-info h4 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+        .subj-info p { font-size: 12px; color: #94a3b8; }
+
+        .subj-right { text-align: right; flex-shrink: 0; }
+        .subj-right .perc {
+            font-size: 22px;
+            font-weight: 800;
+            line-height: 1;
+        }
+        .subj-right .counts { font-size: 11px; color: #94a3b8; margin-top: 3px; }
+
+        /* Progress Bar */
+        .progress-bar-wrap {
+            width: 100%;
+            background: rgba(255,255,255,0.07);
+            border-radius: 10px;
+            height: 6px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        .progress-bar-fill { height: 100%; border-radius: 10px; transition: width 0.5s ease; }
+
+        /* Recent History */
+        .history-item {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 14px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+        .hist-subject { font-size: 14px; font-weight: 600; }
+        .hist-date { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+        .hist-status {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .status-present { background: rgba(16,185,129,0.15); color: #10b981; }
+        .status-late { background: rgba(245,158,11,0.15); color: #f59e0b; }
+        .status-absent { background: rgba(239,68,68,0.15); color: #ef4444; }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #64748b;
+        }
+        .empty-state i { width: 48px; height: 48px; margin-bottom: 12px; opacity: 0.4; }
+
+        /* Download Button */
+        .dl-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 15px;
+            border-radius: 16px;
+            background: rgba(99,102,241,0.1);
+            border: 1px solid rgba(99,102,241,0.3);
+            color: var(--primary);
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .dl-btn:hover { background: rgba(99,102,241,0.2); }
+
+        .spinner {
+            width: 36px; height: 36px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            margin: 40px auto;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <a href="student_home.html" class="back-btn"><i data-lucide="chevron-left"></i></a>
+        <div class="header-text">
+            <h1>Attendance Report</h1>
+            <p id="report-subtitle">S6 CSE | Loading...</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Overall Card -->
+        <div class="overall-card" id="overall-card">
+            <div class="overall-info">
+                <h2>Overall Attendance</h2>
+                <div class="big-perc" id="overall-perc">--</div>
+                <div class="sub" id="overall-sub">Calculating...</div>
+            </div>
+            <div class="status-badge status-warn" id="overall-badge">⏳ Loading</div>
+        </div>
+
+        <!-- Subject-wise -->
+        <div class="section-title">
+            <i data-lucide="book-open"></i> Subject-wise Breakdown
+        </div>
+        <div class="subject-list" id="subject-list">
+            <div class="spinner"></div>
+        </div>
+
+        <!-- Recent History -->
+        <div class="section-title">
+            <i data-lucide="clock"></i> Recent Attendance History
+        </div>
+        <div id="history-list">
+            <div class="spinner"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin + "/api";
+        const token = localStorage.getItem("access_token");
+        if (!token) window.location.href = 'login.html';
+
+        lucide.createIcons();
+
+        function colorForPercent(p) {
+            if (p >= 75) return '#10b981';
+            if (p >= 60) return '#f59e0b';
+            return '#ef4444';
+        }
+
+        function badgeForPercent(p) {
+            if (p >= 75) return { cls: 'status-safe', text: '✓ On Track' };
+            if (p >= 60) return { cls: 'status-warn', text: '⚠ At Risk' };
+            return { cls: 'status-danger', text: '✗ Below Limit' };
+        }
+
+        async function loadReport() {
+            try {
+                // 1. Load overall stats
+                const statsRes = await fetch(`${API_BASE}/student/stats`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const statsData = await statsRes.json();
+                if (statsData.success) {
+                    const perc = Math.round(statsData.stats.overall_percentage);
+                    const present = statsData.stats.present_count;
+                    const total = statsData.stats.total_sessions;
+                    document.getElementById('overall-perc').innerText = perc + '%';
+                    document.getElementById('overall-sub').innerText = `${present} present out of ${total} total sessions`;
+                    const badge = badgeForPercent(perc);
+                    const badgeEl = document.getElementById('overall-badge');
+                    badgeEl.className = 'status-badge ' + badge.cls;
+                    badgeEl.innerText = badge.text;
+                    document.getElementById('overall-perc').style.color = colorForPercent(perc);
+
+                    // Recent history from stats
+                    const historyEl = document.getElementById('history-list');
+                    const history = statsData.recent_history || [];
+                    if (history.length > 0) {
+                        historyEl.innerHTML = history.map(h => {
+                            const d = new Date(h.marked_at);
+                            const dateStr = isNaN(d) ? h.marked_at : d.toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+                            return `
+                                <div class="history-item">
+                                    <div>
+                                        <div class="hist-subject">${h.subject || 'Unknown Subject'}</div>
+                                        <div class="hist-date">${dateStr}</div>
+                                    </div>
+                                    <div class="hist-status status-${(h.status || 'absent').toLowerCase()}">${h.status || 'Absent'}</div>
+                                </div>`;
+                        }).join('');
+                    } else {
+                        historyEl.innerHTML = `<div class="empty-state">
+                            <i data-lucide="calendar-x"></i>
+                            <p>No attendance history found.</p>
+                        </div>`;
+                    }
+                    lucide.createIcons();
+                }
+
+                // 2. Load subject-wise breakdown
+                const attRes = await fetch(`${API_BASE}/student/attendance-full`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const attData = await attRes.json();
+                const subjectList = document.getElementById('subject-list');
+
+                if (attData.success && attData.total_attendance && attData.total_attendance.length > 0) {
+                    // Filter out 'Interval' and 'Lunch Break' from subject list
+                    const teachableSubjects = attData.total_attendance.filter(s =>
+                        s.subject !== 'Interval' && s.subject !== 'Lunch Break'
+                    );
+
+                    // Set subtitle
+                    const firstSubj = teachableSubjects[0];
+                    document.getElementById('report-subtitle').innerText = `Semester 6 · CSE`;
+
+                    if (teachableSubjects.length > 0) {
+                        subjectList.innerHTML = teachableSubjects.map(s => {
+                            const perc = Math.round(s.percentage);
+                            const color = colorForPercent(perc);
+                            return `
+                                <div class="subject-card">
+                                    <div class="subj-icon"><i data-lucide="book-open"></i></div>
+                                    <div class="subj-info">
+                                        <h4>${s.subject}</h4>
+                                        <div class="progress-bar-wrap">
+                                            <div class="progress-bar-fill" style="width:${perc}%; background:${color};"></div>
+                                        </div>
+                                    </div>
+                                    <div class="subj-right">
+                                        <div class="perc" style="color:${color}">${perc}%</div>
+                                        <div class="counts">${s.present}/${s.total_classes} classes</div>
+                                    </div>
+                                </div>`;
+                        }).join('');
+                    } else {
+                        subjectList.innerHTML = `<div class="empty-state">
+                            <p>No subject data available yet.</p>
+                        </div>`;
+                    }
+                    lucide.createIcons();
+                } else {
+                    subjectList.innerHTML = `<div class="empty-state">
+                        <i data-lucide="bar-chart-2"></i>
+                        <p>No attendance records found yet.<br>Attend classes and scan QR codes to see your report here.</p>
+                    </div>`;
+                    lucide.createIcons();
+                }
+
+            } catch (e) {
+                console.error("Report load error:", e);
+                document.getElementById('subject-list').innerHTML = `<div class="empty-state"><p>Failed to load report. Please try again.</p></div>`;
+            }
+        }
+
+        loadReport();
+    </script>
+</body>
+
+</html>
