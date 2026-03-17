@@ -10,7 +10,7 @@
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Inter:wght@400;500&display=swap"
         rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --primary: #6366f1;
@@ -292,44 +292,6 @@
             text-decoration: none;
             z-index: 100;
         }
-        /* Chart Card */
-        .chart-card {
-            background: var(--card-bg);
-            backdrop-filter: blur(10px);
-            border: 1px solid var(--glass-border);
-            border-radius: 24px;
-            padding: 20px;
-            margin-bottom: 25px;
-        }
-
-        .chart-card canvas {
-            max-height: 220px;
-        }
-
-        .chart-empty {
-            text-align: center;
-            padding: 30px;
-            color: #64748b;
-            font-size: 14px;
-        }
-
-        .view-report-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            padding: 14px;
-            border-radius: 16px;
-            background: rgba(99,102,241,0.1);
-            border: 1px solid rgba(99,102,241,0.25);
-            color: var(--primary);
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 15px;
-            margin-bottom: 25px;
-            transition: 0.2s;
-        }
-        .view-report-btn:hover { background: rgba(99,102,241,0.18); }
     </style>
 </head>
 
@@ -390,17 +352,9 @@
             Attendance Overview
             <i data-lucide="bar-chart-2" style="color: var(--primary); width: 20px;"></i>
         </div>
-        <div class="chart-card">
+        <div class="main-stat-card" style="display: block; padding: 20px; min-height: 300px;">
             <canvas id="attendanceChart"></canvas>
-            <div id="chart-empty" class="chart-empty" style="display:none;">
-                No attendance data yet. Start scanning QR codes!
-            </div>
         </div>
-
-        <!-- View Full Report -->
-        <a href="student_report.html" class="view-report-btn">
-            <i data-lucide="bar-chart-3"></i> View Full Attendance Report
-        </a>
     </div>
 
     <a href="student_scan.html" class="fab">
@@ -427,11 +381,9 @@
             lucide.createIcons();
         }
 
-        let chartInstance = null;
-
         async function loadData() {
             try {
-                // 1. Overall stats
+                // Fetch student stats
                 const statRes = await fetch(`${API_BASE}/student/stats`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
@@ -442,96 +394,77 @@
                     document.getElementById('circle-perc').innerText = perc + "%";
                 }
 
-                // 2. Subject-wise attendance for chart
+                // Fetch full attendance for graph
                 const attRes = await fetch(`${API_BASE}/student/attendance-full`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const attData = await attRes.json();
-
-                if (attData.success && attData.total_attendance && attData.total_attendance.length > 0) {
-                    // Filter out break/lunch subjects
-                    const subjects = attData.total_attendance.filter(s =>
-                        s.subject !== 'Interval' && s.subject !== 'Lunch Break'
-                    );
-
-                    if (subjects.length > 0) {
-                        const labels = subjects.map(s => {
-                            // Shorten long names for display
-                            const words = s.subject.split(' ');
-                            return words.length > 3 ? words.slice(0,3).join(' ') + '...' : s.subject;
-                        });
-                        const percentages = subjects.map(s => Math.round(s.percentage));
-
-                        const colors = percentages.map(p =>
-                            p >= 75 ? 'rgba(16,185,129,0.8)' :
-                            p >= 60 ? 'rgba(245,158,11,0.8)' :
-                            'rgba(239,68,68,0.8)'
-                        );
-
-                        const ctx = document.getElementById('attendanceChart').getContext('2d');
-                        if (chartInstance) chartInstance.destroy();
-                        chartInstance = new Chart(ctx, {
-                            type: 'bar',
-                            data: {
-                                labels: labels,
-                                datasets: [{
-                                    label: 'Attendance %',
-                                    data: percentages,
-                                    backgroundColor: colors,
-                                    borderRadius: 8,
-                                    borderSkipped: false,
-                                }]
-                            },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: true,
-                                plugins: {
-                                    legend: { display: false },
-                                    tooltip: {
-                                        callbacks: {
-                                            label: ctx => ` ${ctx.raw}% attended`
-                                        }
-                                    }
-                                },
-                                scales: {
-                                    x: {
-                                        grid: { color: 'rgba(255,255,255,0.05)' },
-                                        ticks: { color: '#94a3b8', font: { size: 10 } }
-                                    },
-                                    y: {
-                                        min: 0, max: 100,
-                                        grid: { color: 'rgba(255,255,255,0.05)' },
-                                        ticks: {
-                                            color: '#94a3b8',
-                                            callback: v => v + '%'
-                                        }
-                                    }
-                                }
-                            }
-                        });
-
-                        // Draw 75% threshold line annotation manually via plugin
-                        lucide.createIcons();
-                    } else {
-                        showChartEmpty();
-                    }
-                } else {
-                    showChartEmpty();
+                if (attData.success) {
+                    renderChart(attData.total_attendance);
                 }
-
-            } catch (e) {
-                console.error(e);
-                showChartEmpty();
-            }
+            } catch (e) { console.error(e); }
         }
 
-        function showChartEmpty() {
-            document.getElementById('attendanceChart').style.display = 'none';
-            document.getElementById('chart-empty').style.display = 'block';
+        function renderChart(data) {
+            const ctx = document.getElementById('attendanceChart').getContext('2d');
+            
+            // Filter out Interval and Lunch from graph
+            const cleanData = data.filter(s => s.subject !== 'Interval' && s.subject !== 'Lunch Break');
+            
+            const labels = cleanData.map(s => s.subject);
+            const values = cleanData.map(s => Math.round(s.percentage));
+            const colors = values.map(v => v >= 75 ? '#10b981' : (v >= 60 ? '#f59e0b' : '#ef4444'));
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Attendance %',
+                        data: values,
+                        backgroundColor: colors,
+                        borderRadius: 8,
+                        borderWidth: 0,
+                        barThickness: 25
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y', // Horizontal bars look better on mobile
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => `Attendance: ${ctx.raw}%`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false, drawBorder: false },
+                            ticks: { color: '#94a3b8', font: { size: 10 } },
+                            max: 100,
+                            beginAtZero: true
+                        },
+                        y: {
+                            grid: { display: false, drawBorder: false },
+                            ticks: { 
+                                color: '#f8fafc', 
+                                font: { size: 11, weight: '600' },
+                                callback: function(value) {
+                                    const label = this.getLabelForValue(value);
+                                    return label.length > 15 ? label.substr(0, 15) + '...' : label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
         }
 
         loadData();
     </script>
 </body>
 
-</html>
+</html>
