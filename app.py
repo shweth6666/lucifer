@@ -740,7 +740,7 @@ def get_student_timetable():
         SELECT t.*, s.name as subject_name, u.name as faculty_name
         FROM timetable t
         JOIN subjects s ON t.subject_id = s.id
-        JOIN users u ON t.faculty_id = u.id
+        LEFT JOIN users u ON t.faculty_id = u.id
         WHERE UPPER(t.branch) = UPPER(%s) AND UPPER(t.semester) = UPPER(%s) AND t.day_of_week = %s
         ORDER BY t.start_time
     """, (user["branch"], user["semester"], day))
@@ -763,7 +763,7 @@ def get_student_timetable_full():
         SELECT t.*, s.name as subject_name, u.name as faculty_name
         FROM timetable t
         JOIN subjects s ON t.subject_id = s.id
-        JOIN users u ON t.faculty_id = u.id
+        LEFT JOIN users u ON t.faculty_id = u.id
         WHERE UPPER(t.branch) = UPPER(%s) AND UPPER(t.semester) = UPPER(%s)
         ORDER BY CASE day_of_week 
             WHEN 'Monday' THEN 1 WHEN 'Tuesday' THEN 2 

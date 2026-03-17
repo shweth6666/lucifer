@@ -246,7 +246,7 @@
                         </div>
                         <div class="details">
                             <h4>${t.subject_name}</h4>
-                            <p>${role === 'faculty' ? (t.branch + " " + t.semester) : t.faculty_name}</p>
+                            <p>${role === 'faculty' ? (t.branch + " " + t.semester) : (t.faculty_name || 'Break/No Faculty')}</p>
                         </div>
                         ${isCurrent ? '<div class="current-tag">ACTIVE</div>' : ''}
                     </div>
