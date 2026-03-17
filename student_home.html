@@ -10,6 +10,7 @@
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Inter:wght@400;500&display=swap"
         rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         :root {
             --primary: #6366f1;
@@ -291,6 +292,44 @@
             text-decoration: none;
             z-index: 100;
         }
+        /* Chart Card */
+        .chart-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .chart-card canvas {
+            max-height: 220px;
+        }
+
+        .chart-empty {
+            text-align: center;
+            padding: 30px;
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .view-report-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 14px;
+            border-radius: 16px;
+            background: rgba(99,102,241,0.1);
+            border: 1px solid rgba(99,102,241,0.25);
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 15px;
+            margin-bottom: 25px;
+            transition: 0.2s;
+        }
+        .view-report-btn:hover { background: rgba(99,102,241,0.18); }
     </style>
 </head>
 
@@ -346,14 +385,22 @@
             <div class="attendance-circle" id="circle-perc">--</div>
         </div>
 
-        <!-- Today's Classes -->
+        <!-- Attendance Graph -->
         <div class="section-title">
-            Today's Schedule
-            <i data-lucide="calendar" style="color: var(--primary); width: 20px;"></i>
+            Attendance Overview
+            <i data-lucide="bar-chart-2" style="color: var(--primary); width: 20px;"></i>
         </div>
-        <div class="item-list" id="timetable-list">
-            <p style="text-align:center; color:#64748b; padding: 20px;">Loading schedule...</p>
+        <div class="chart-card">
+            <canvas id="attendanceChart"></canvas>
+            <div id="chart-empty" class="chart-empty" style="display:none;">
+                No attendance data yet. Start scanning QR codes!
+            </div>
         </div>
+
+        <!-- View Full Report -->
+        <a href="student_report.html" class="view-report-btn">
+            <i data-lucide="bar-chart-3"></i> View Full Attendance Report
+        </a>
     </div>
 
     <a href="student_scan.html" class="fab">
@@ -380,9 +427,11 @@
             lucide.createIcons();
         }
 
+        let chartInstance = null;
+
         async function loadData() {
             try {
-                // Fetch student stats
+                // 1. Overall stats
                 const statRes = await fetch(`${API_BASE}/student/stats`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
@@ -393,39 +442,96 @@
                     document.getElementById('circle-perc').innerText = perc + "%";
                 }
 
-                // Fetch timetable
-                const timeRes = await fetch(`${API_BASE}/student/timetable`, {
+                // 2. Subject-wise attendance for chart
+                const attRes = await fetch(`${API_BASE}/student/attendance-full`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-                const timeData = await timeRes.json();
-                if (timeData.success) {
-                    const list = document.getElementById('timetable-list');
-                    if (timeData.timetable.length > 0) {
-                        list.innerHTML = '';
-                        timeData.timetable.forEach(t => {
-                            list.innerHTML += `
-                                <div class="list-item">
-                                    <div class="item-info">
-                                        <div class="item-icon"><i data-lucide="book-open"></i></div>
-                                        <div class="item-text">
-                                            <h4>${t.subject_name}</h4>
-                                            <p>${t.start_time} - ${t.end_time} • ${t.faculty_name || 'Break/No Faculty'}</p>
-                                        </div>
-                                    </div>
-                                    <i data-lucide="clock" style="color: #64748b; width: 16px;"></i>
-                                </div>
-                            `;
+                const attData = await attRes.json();
+
+                if (attData.success && attData.total_attendance && attData.total_attendance.length > 0) {
+                    // Filter out break/lunch subjects
+                    const subjects = attData.total_attendance.filter(s =>
+                        s.subject !== 'Interval' && s.subject !== 'Lunch Break'
+                    );
+
+                    if (subjects.length > 0) {
+                        const labels = subjects.map(s => {
+                            // Shorten long names for display
+                            const words = s.subject.split(' ');
+                            return words.length > 3 ? words.slice(0,3).join(' ') + '...' : s.subject;
                         });
+                        const percentages = subjects.map(s => Math.round(s.percentage));
+
+                        const colors = percentages.map(p =>
+                            p >= 75 ? 'rgba(16,185,129,0.8)' :
+                            p >= 60 ? 'rgba(245,158,11,0.8)' :
+                            'rgba(239,68,68,0.8)'
+                        );
+
+                        const ctx = document.getElementById('attendanceChart').getContext('2d');
+                        if (chartInstance) chartInstance.destroy();
+                        chartInstance = new Chart(ctx, {
+                            type: 'bar',
+                            data: {
+                                labels: labels,
+                                datasets: [{
+                                    label: 'Attendance %',
+                                    data: percentages,
+                                    backgroundColor: colors,
+                                    borderRadius: 8,
+                                    borderSkipped: false,
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: true,
+                                plugins: {
+                                    legend: { display: false },
+                                    tooltip: {
+                                        callbacks: {
+                                            label: ctx => ` ${ctx.raw}% attended`
+                                        }
+                                    }
+                                },
+                                scales: {
+                                    x: {
+                                        grid: { color: 'rgba(255,255,255,0.05)' },
+                                        ticks: { color: '#94a3b8', font: { size: 10 } }
+                                    },
+                                    y: {
+                                        min: 0, max: 100,
+                                        grid: { color: 'rgba(255,255,255,0.05)' },
+                                        ticks: {
+                                            color: '#94a3b8',
+                                            callback: v => v + '%'
+                                        }
+                                    }
+                                }
+                            }
+                        });
+
+                        // Draw 75% threshold line annotation manually via plugin
                         lucide.createIcons();
                     } else {
-                        list.innerHTML = '<p style="text-align:center; color:#64748b; padding: 20px;">No classes today!</p>';
+                        showChartEmpty();
                     }
+                } else {
+                    showChartEmpty();
                 }
-            } catch (e) { console.error(e); }
+
+            } catch (e) {
+                console.error(e);
+                showChartEmpty();
+            }
+        }
+
+        function showChartEmpty() {
+            document.getElementById('attendanceChart').style.display = 'none';
+            document.getElementById('chart-empty').style.display = 'block';
         }
 
         loadData();
     </script>
 </body>
 
-</html>
+</html>
