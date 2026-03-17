@@ -308,9 +308,6 @@
             <a href="student_home.html" class="nav-link active">
                 <i data-lucide="layout-dashboard"></i> My Dashboard
             </a>
-            <a href="timetable.html" class="nav-link">
-                <i data-lucide="calendar"></i> Weekly Timetable
-            </a>
             <a href="student_scan.html" class="nav-link">
                 <i data-lucide="scan"></i> Scan Attendance
             </a>
@@ -346,14 +343,6 @@
             <div class="attendance-circle" id="circle-perc">--</div>
         </div>
 
-        <!-- Today's Classes -->
-        <div class="section-title">
-            Today's Schedule
-            <i data-lucide="calendar" style="color: var(--primary); width: 20px;"></i>
-        </div>
-        <div class="item-list" id="timetable-list">
-            <p style="text-align:center; color:#64748b; padding: 20px;">Loading schedule...</p>
-        </div>
     </div>
 
     <a href="student_scan.html" class="fab">
@@ -393,34 +382,6 @@
                     document.getElementById('circle-perc').innerText = perc + "%";
                 }
 
-                // Fetch timetable
-                const timeRes = await fetch(`${API_BASE}/student/timetable`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const timeData = await timeRes.json();
-                if (timeData.success) {
-                    const list = document.getElementById('timetable-list');
-                    if (timeData.timetable.length > 0) {
-                        list.innerHTML = '';
-                        timeData.timetable.forEach(t => {
-                            list.innerHTML += `
-                                <div class="list-item">
-                                    <div class="item-info">
-                                        <div class="item-icon"><i data-lucide="book-open"></i></div>
-                                        <div class="item-text">
-                                            <h4>${t.subject_name}</h4>
-                                            <p>${t.start_time} - ${t.end_time} • ${t.faculty_name || 'Break/No Faculty'}</p>
-                                        </div>
-                                    </div>
-                                    <i data-lucide="clock" style="color: #64748b; width: 16px;"></i>
-                                </div>
-                            `;
-                        });
-                        lucide.createIcons();
-                    } else {
-                        list.innerHTML = '<p style="text-align:center; color:#64748b; padding: 20px;">No classes today!</p>';
-                    }
-                }
             } catch (e) { console.error(e); }
         }
 
