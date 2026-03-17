@@ -205,7 +205,7 @@
         }
 
         async function fetchTimetable() {
-            const endpoint = (currentRole === 'faculty') ? '/api/faculty/timetable' : '/api/student/timetable-full';
+            const endpoint = (currentRole === 'faculty') ? '/faculty/timetable' : '/student/timetable-full';
             console.log("Fetching from:", endpoint, "with role", currentRole);
             try {
                 const res = await fetch(`${API_BASE}${endpoint}`, {
