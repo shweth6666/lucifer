@@ -39,7 +39,13 @@ DATABASE_CONFIG = {
 }
 
 def get_db():
-    conn = mysql.connector.connect(**DATABASE_CONFIG)
+    # If using a remote database (like Aiven), SSL is typically required
+    config = DATABASE_CONFIG.copy()
+    if config["host"] != "localhost":
+        config["ssl_disabled"] = False
+        config["ssl_mode"] = "REQUIRED"
+    
+    conn = mysql.connector.connect(**config)
     return conn
 
 @app.route("/api/health")
