@@ -39,13 +39,7 @@ DATABASE_CONFIG = {
 }
 
 def get_db():
-    # If using a remote database (like Aiven), SSL is typically required
-    config = DATABASE_CONFIG.copy()
-    if config["host"] != "localhost":
-        config["ssl_disabled"] = False
-        config["ssl_mode"] = "REQUIRED"
-    
-    conn = mysql.connector.connect(**config)
+    conn = mysql.connector.connect(**DATABASE_CONFIG)
     return conn
 
 @app.route("/api/health")
@@ -150,7 +144,7 @@ def init_db():
     # 🚀 Auto-seed default users if database is empty
     cur.execute("SELECT COUNT(*) as count FROM users")
     if cur.fetchone()['count'] == 0:
-        print("Seeding default users...")
+        print("Auto-seeding default users...")
         default_users = [
             ("admin1", generate_password_hash("admin123"), "admin", "Admin User")
         ]
@@ -244,9 +238,9 @@ def init_db():
 # 🚀 Initialize DB with error handling to prevent startup crash
 try:
     init_db()
-    print("✅ Database initialized successfully.")
+    print("Database initialized successfully.")
 except Exception as e:
-    print(f"⚠️ Warning: Database initialization failed. Check your DB environment variables.")
+    print(f"Warning: Database initialization failed. Check your DB environment variables.")
     print(f"Error details: {e}")
 
 # 📍 Distance calculation (Haversine)
@@ -1236,7 +1230,7 @@ def not_found(e):
 
 @app.errorhandler(Exception)
 def handle_exception(e):
-    print(f"🔥 Server Error: {e}")
+    print(f"Server Error: {e}")
     return jsonify({"success": False, "message": "Internal server error", "error": str(e)}), 500
 
 # 🌐 Serve Static & HTML Files
