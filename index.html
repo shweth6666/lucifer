@@ -659,12 +659,19 @@
         </div>
 
 
+        <!-- Connection Status -->
+        <div id="backendStatus" style="margin-top: 24px; font-size: 13px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 16px;">
+          <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #94a3b8; margin-right: 6px;"></span> Checking backend...
+        </div>
       </div>
     </div>
 
     <script>
+      const API_BASE = window.location.origin + "/api";
+
       // Splash Intro Sequence
       window.addEventListener('DOMContentLoaded', () => {
+        checkBackend();
         // 1. Wait for the briefcase to "walk in" (1.5s)
         setTimeout(() => {
           const wrapper = document.getElementById('briefcaseWrapper');
@@ -688,6 +695,22 @@
           }, 900);
         }, 1500);
       });
+
+      async function checkBackend() {
+        const out = document.getElementById('backendStatus');
+        try {
+          const startTime = Date.now();
+          const res = await fetch(`${API_BASE}/health`);
+          const endTime = Date.now();
+          if (res.ok) {
+            out.innerHTML = `<span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; margin-right: 6px; box-shadow: 0 0 10px #10b981;"></span> Backend Connected <span style="font-size: 11px; opacity: 0.7;">(${endTime - startTime}ms)</span>`;
+          } else {
+            out.innerHTML = `<span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #fbbf24; margin-right: 6px;"></span> Backend Error`;
+          }
+        } catch (e) {
+          out.innerHTML = `<span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #ef4444; margin-right: 6px;"></span> Backend Offline`;
+        }
+      }
 
       let selectedRole = "";
 
@@ -748,7 +771,7 @@
         box.classList.add('shake');
       }
 
-      function login() {
+      async function login() {
         const u = document.getElementById("username").value.trim();
         const p = document.getElementById("password").value.trim();
 
@@ -763,25 +786,49 @@
         const loginBtn = document.getElementById("loginBtn");
         loginBtn.style.pointerEvents = "none";
 
-        // Simulate network request for effect
-        setTimeout(() => {
-          if (selectedRole === "teacher" && u === "faculty1" && p === "faculty123") {
-            window.location.href = "dashboard.html?role=teacher";
-          }
-          else if (selectedRole === "student" && u === "student1" && p === "student123") {
-            window.location.href = "dashboard.html?role=student";
-          }
-          else if (selectedRole === "admin" && u === "admin" && p === "admin123") {
-            window.location.href = "admin-logs.html";
-          }
-          else {
-            // Reset button and show error
+        try {
+          const res = await fetch(`${API_BASE}/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              username: u,
+              password: p,
+              device_id: "pwa-web-id" // Placeholder for this template
+            })
+          });
+
+          const data = await res.json();
+
+          if (data.success) {
+            // Save to localStorage
+            localStorage.setItem('access_token', data.access_token);
+            localStorage.setItem('user_role', data.user.role);
+            localStorage.setItem('user_name', data.user.name);
+            
+            // Success glow
+            loginBtn.style.background = "#10b981";
+            document.getElementById("btnText").innerText = "Success!";
+            
+            setTimeout(() => {
+              if (data.user.role === 'admin') window.location.href = "admin_dashboard.html";
+              else if (data.user.role === 'faculty') window.location.href = "faculty_home.html";
+              else window.location.href = "student_home.html";
+            }, 800);
+          } else {
             document.getElementById("btnText").classList.remove("loading");
             document.getElementById("btnLoader").classList.remove("loading");
+            document.getElementById("btnText").innerText = "Sign In";
             loginBtn.style.pointerEvents = "auto";
             triggerError();
           }
-        }, 700);
+        } catch (err) {
+          console.error("Login request failed:", err);
+          document.getElementById("btnText").classList.remove("loading");
+          document.getElementById("btnLoader").classList.remove("loading");
+          document.getElementById("btnText").innerText = "Connection Error";
+          loginBtn.style.pointerEvents = "auto";
+          triggerError();
+        }
       }
 
       // Add enter key support

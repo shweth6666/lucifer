@@ -1,4 +1,6 @@
 import os
+from dotenv import load_dotenv
+load_dotenv()
 import mysql.connector
 import math
 import csv
@@ -35,7 +37,9 @@ DATABASE_CONFIG = {
     "user": os.environ.get("DB_USER", "root"),
     "password": os.environ.get("DB_PASSWORD", "123456"),
     "database": os.environ.get("DB_NAME", "qr_attendence"),
-    "port": int(os.environ.get("DB_PORT", 3306))
+    "port": int(os.environ.get("DB_PORT", 3306)),
+    "ssl_disabled": False,  # Required for Railway/Render
+    "ssl_verify_cert": False # Simplifies cloud setups
 }
 
 def get_db():

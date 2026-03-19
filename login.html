@@ -362,13 +362,53 @@
                 </form>
             </div>
 
+            <!-- Connection Status -->
+            <div id="backend-status" style="margin-top: 25px; font-size: 12px; color: #64748b; text-align: center; border-top: 1px solid var(--glass-border); padding-top: 15px;">
+                <span class="pulse" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #64748b; margin-right: 6px;"></span> Checking connection...
+            </div>
+
         </div>
     </div>
+
+    <style>
+        @keyframes pulse {
+            0% { transform: scale(0.95); opacity: 0.5; }
+            50% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.5; }
+        }
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+    </style>
 
     <script>
         lucide.createIcons();
         let selectedRole = null;
         const API_BASE = window.location.origin + "/api";
+
+        // Check backend connection on load
+        async function checkConnection() {
+            const statusEl = document.getElementById('backend-status');
+            try {
+                const startTime = Date.now();
+                const res = await fetch(`${API_BASE}/health`);
+                const endTime = Date.now();
+                const latency = endTime - startTime;
+
+                if (res.ok) {
+                    const data = await res.json();
+                    statusEl.innerHTML = `<span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; margin-right: 6px; box-shadow: 0 0 10px #10b981;"></span> Backend Connected <span style="font-size: 10px; opacity: 0.6;">(${latency}ms)</span>`;
+                    console.log("Backend healthy:", data);
+                } else {
+                    statusEl.innerHTML = `<span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #fbbf24; margin-right: 6px;"></span> Backend Error`;
+                }
+            } catch (err) {
+                statusEl.innerHTML = `<span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #ef4444; margin-right: 6px;"></span> Backend Offline`;
+                console.error("Connection failed:", err);
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', checkConnection);
 
         function selectRole(role) {
             selectedRole = role;
