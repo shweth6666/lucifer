@@ -32,18 +32,13 @@ jwt = JWTManager(app)
 # This is a valid 32-byte URL-safe base64 Fernet key.
 cipher_suite = Fernet(b'ZmDfcTF7_60GrrY167zsiPd67pEvs0aGOv2oasOM1Pg=')
 
-DATABASE_CONFIG = {
-    "host": os.environ.get("DB_HOST", "localhost"),
-    "user": os.environ.get("DB_USER", "root"),
-    "password": os.environ.get("DB_PASSWORD", "123456"),
-    "database": os.environ.get("DB_NAME", "qr_attendence"),
-    "port": int(os.environ.get("DB_PORT", 3306)),
-    "ssl_disabled": False,  # Required for Railway/Render
-    "ssl_verify_cert": False # Simplifies cloud setups
-}
+
+
+import os
+import psycopg2
 
 def get_db():
-    conn = mysql.connector.connect(**DATABASE_CONFIG)
+    conn = psycopg2.connect(os.environ["DATABASE_URL"])
     return conn
 
 @app.route("/api/health")
@@ -64,83 +59,83 @@ def health_check():
 
 def init_db():
     conn = get_db()
-    cur = conn.cursor(dictionary=True)
+    cur = conn.cursor()
 
     # 1. Users Table
     cur.execute("""
     CREATE TABLE IF NOT EXISTS users (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        username VARCHAR(255) UNIQUE,
-        password TEXT,
-        role VARCHAR(50),
-        name VARCHAR(255),
-        roll_no VARCHAR(100),
-        branch VARCHAR(100),
-        semester VARCHAR(50),
-        device_id VARCHAR(255)
-    )
+    id SERIAL PRIMARY KEY,
+    username TEXT UNIQUE,
+    password TEXT,
+    role TEXT,
+    name TEXT,
+    roll_no TEXT,
+    branch TEXT,
+    semester TEXT,
+    device_id TEXT
+);
     """)
 
     # 2. Sessions Table
     cur.execute("""
     CREATE TABLE IF NOT EXISTS sessions (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        faculty_id INT,
-        branch VARCHAR(100),
-        semester VARCHAR(50),
-        subject VARCHAR(255),
-        start_time TEXT,
-        latitude DOUBLE,
-        longitude DOUBLE,
-        expires_at TEXT,
-        radius INT DEFAULT 20
-    )
+    id SERIAL PRIMARY KEY,
+    faculty_id INTEGER,
+    branch TEXT,
+    semester TEXT,
+    subject TEXT,
+    start_time TEXT,
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
+    expires_at TEXT,
+    radius INTEGER DEFAULT 20
+);
     """)
 
     # 3. Attendance Table
     cur.execute("""
-    CREATE TABLE IF NOT EXISTS attendance (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        session_id INT,
-        student_id INT,
-        status VARCHAR(50),
-        marked_at TEXT
-    )
+   CREATE TABLE IF NOT EXISTS attendance (
+    id SERIAL PRIMARY KEY,
+    student_id INTEGER,
+    session_id INTEGER,
+    timestamp TEXT
+); 
     """)
 
     # 4. Subjects Table
     cur.execute("""
     CREATE TABLE IF NOT EXISTS subjects (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        code VARCHAR(100) UNIQUE,
-        name VARCHAR(255),
-        branch VARCHAR(100),
-        semester VARCHAR(50)
-    )
+    id SERIAL PRIMARY KEY,
+    code TEXT UNIQUE,
+    name TEXT,
+    branch TEXT,
+    semester TEXT
+);
     """)
 
     # 5. Timetable Table
     cur.execute("""
     CREATE TABLE IF NOT EXISTS timetable (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        faculty_id INT,
-        subject_id INT,
-        day_of_week VARCHAR(20),
-        start_time VARCHAR(20),
-        end_time VARCHAR(20),
-        branch VARCHAR(100),
-        semester VARCHAR(50)
-    )
+    id SERIAL PRIMARY KEY,
+    faculty_id INTEGER,
+    subject_id INTEGER,
+    day_of_week TEXT,
+    start_time TEXT,
+    end_time TEXT,
+    branch TEXT,
+    semester TEXT
+);
+    
     """)
 
     # 6. Faculty-Subjects Table
     cur.execute("""
     CREATE TABLE IF NOT EXISTS faculty_subjects (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        faculty_id INT,
-        subject_name VARCHAR(255),
-        FOREIGN KEY (faculty_id) REFERENCES users(id) ON DELETE CASCADE
-    )
+    id SERIAL PRIMARY KEY,
+    faculty_id INTEGER,
+    subject_name TEXT,
+    FOREIGN KEY (faculty_id) REFERENCES users(id) ON DELETE CASCADE
+);
     """)
 
     conn.commit()
