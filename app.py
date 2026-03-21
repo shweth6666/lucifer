@@ -36,6 +36,7 @@ cipher_suite = Fernet(b'ZmDfcTF7_60GrrY167zsiPd67pEvs0aGOv2oasOM1Pg=')
 
 import os
 import psycopg2
+from psycopg2.extras import RealDictCursor
 
 def get_db():
     conn = psycopg2.connect(os.environ["DATABASE_URL"])
@@ -59,7 +60,7 @@ def health_check():
 
 def init_db():
     conn = get_db()
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
 
     # 1. Users Table
     cur.execute("""
@@ -265,7 +266,7 @@ def login():
     device_id = data.get("device_id")
 
     conn = get_db()
-    cur = conn.cursor(dictionary=True)
+    cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(
         "SELECT id, username, password, role, name, roll_no, branch, semester, device_id FROM users WHERE username=%s",
         (username,)
@@ -316,7 +317,7 @@ def login():
 def whoami():
     current_user_id = get_jwt_identity()
     conn = get_db()
-    cur = conn.cursor(dictionary=True)
+    cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("SELECT id, username, role, name, branch, semester FROM users WHERE id = %s", (current_user_id,))
     user = cur.fetchone()
     conn.close()
@@ -352,7 +353,7 @@ def create_session():
     expires_at = (datetime.now() + timedelta(minutes=15)).isoformat()
 
     conn = get_db()
-    cur = conn.cursor(dictionary=True)
+    cur = conn.cursor(cursor_factory=RealDictCursor)
 
     # 🔒 Authorization Check: Can this faculty teach this subject?
     if claims.get("role") == "faculty":
@@ -381,7 +382,7 @@ def create_session():
 @jwt_required()
 def get_session_qr(session_id):
     conn = get_db()
-    cur = conn.cursor(dictionary=True)
+    cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("SELECT * FROM sessions WHERE id=%s", (session_id,))
     session = cur.fetchone()
     conn.close()
@@ -442,7 +443,7 @@ def mark_attendance():
         return jsonify({"success": False, "message": "QR Code expired. Scan the latest one on screen."}), 400
 
     conn = get_db()
-    cur = conn.cursor(dictionary=True)
+    cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("SELECT * FROM sessions WHERE id=%s", (session_id,))
     session = cur.fetchone()
 
@@ -501,7 +502,7 @@ def mark_attendance():
 @jwt_required()
 def get_live_attendance(session_id):
     conn = get_db()
-    cur = conn.cursor(dictionary=True)
+    cur = conn.cursor(cursor_factory=RealDictCursor)
 
     # Get session info
     cur.execute("SELECT * FROM sessions WHERE id=%s", (session_id,))
@@ -538,7 +539,7 @@ def update_session_location(session_id):
     longitude = data.get("longitude")
 
     conn = get_db()
-    cur = conn.cursor(dictionary=True)
+    cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(
         "UPDATE sessions SET latitude=%s, longitude=%s WHERE id=%s",
         (latitude, longitude, session_id)
@@ -554,7 +555,7 @@ def update_session_location(session_id):
 def get_faculty_dashboard():
     faculty_id = get_jwt_identity()
     conn = get_db()
-    cur = conn.cursor(dictionary=True)
+    cur = conn.cursor(cursor_factory=RealDictCursor)
     
     # Get active session
     cur.execute("SELECT id, subject, branch, semester FROM sessions WHERE faculty_id=%s AND expires_at > %s ORDER BY id DESC LIMIT 1", 
@@ -587,7 +588,7 @@ def get_faculty_dashboard():
 def get_faculty_stats():
     faculty_id = get_jwt_identity()
     conn = get_db()
-    cur = conn.cursor(dictionary=True)
+    cur = conn.cursor(cursor_factory=RealDictCursor)
     
     # Total sessions by this faculty
     cur.execute("SELECT COUNT(*) as count FROM sessions WHERE faculty_id=%s", (faculty_id,))
@@ -645,7 +646,7 @@ def get_current_period():
     time = now.strftime('%H:%M')
     
     conn = get_db()
-    cur = conn.cursor(dictionary=True)
+    cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("""
         SELECT t.*, s.name as subject_name 
         FROM timetable t
@@ -663,7 +664,7 @@ def get_current_period():
 def get_faculty_timetable():
     faculty_id = get_jwt_identity()
     conn = get_db()
-    cur = conn.cursor(dictionary=True)
+    cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("""
         SELECT t.*, s.name as subject_name 
         FROM timetable t
@@ -686,7 +687,7 @@ def get_faculty_timetable():
 def get_student_stats():
     student_id = get_jwt_identity()
     conn = get_db()
-    cur = conn.cursor(dictionary=True)
+    cur = conn.cursor(cursor_factory=RealDictCursor)
     
     # Overall attendance %
     cur.execute("SELECT COUNT(*) as count FROM attendance WHERE student_id=%s", (student_id,))
@@ -728,7 +729,7 @@ def get_student_stats():
 def get_student_timetable():
     student_id = get_jwt_identity()
     conn = get_db()
-    cur = conn.cursor(dictionary=True)
+    cur = conn.cursor(cursor_factory=RealDictCursor)
     
     cur.execute("SELECT branch, semester FROM users WHERE id=%s", (student_id,))
     user = cur.fetchone()
@@ -753,7 +754,7 @@ def get_student_timetable():
 def get_student_timetable_full():
     student_id = get_jwt_identity()
     conn = get_db()
-    cur = conn.cursor(dictionary=True)
+    cur = conn.cursor(cursor_factory=RealDictCursor)
     
     cur.execute("SELECT branch, semester FROM users WHERE id=%s", (student_id,))
     user = cur.fetchone()
@@ -780,7 +781,7 @@ def get_student_timetable_full():
 def get_student_attendance_full():
     student_id = get_jwt_identity()
     conn = get_db()
-    cur = conn.cursor(dictionary=True)
+    cur = conn.cursor(cursor_factory=RealDictCursor)
     
     cur.execute("SELECT branch, semester FROM users WHERE id=%s", (student_id,))
     user = cur.fetchone()
@@ -836,7 +837,7 @@ def list_users():
     offset = (page - 1) * per_page
 
     conn = get_db()
-    cur = conn.cursor(dictionary=True)
+    cur = conn.cursor(cursor_factory=RealDictCursor)
     
     # Get total count
     cur.execute("SELECT COUNT(*) as count FROM users")
@@ -888,7 +889,7 @@ def create_user():
 
     try:
         conn = get_db()
-        cur = conn.cursor(dictionary=True)
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute(
             """
             INSERT INTO users (username, password, role, name, roll_no, branch, semester)
@@ -937,7 +938,7 @@ def update_user(user_id):
     query = f"UPDATE users SET {', '.join(updates)} WHERE id = %s"
 
     conn = get_db()
-    cur = conn.cursor(dictionary=True)
+    cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(query, tuple(params))
     conn.commit()
     
@@ -972,7 +973,7 @@ def admin_change_password():
             return jsonify({"success": False, "message": "Current password required"}), 400
             
         conn = get_db()
-        cur = conn.cursor(dictionary=True)
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute("SELECT password FROM users WHERE id = %s", (target_user_id,))
         user_record = cur.fetchone()
         
@@ -1006,7 +1007,7 @@ def delete_user(user_id):
         return jsonify({"success": False, "message": "Unauthorized. Admin only."}), 403
 
     conn = get_db()
-    cur = conn.cursor(dictionary=True)
+    cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("DELETE FROM users WHERE id = %s", (user_id,))
     conn.commit()
     
@@ -1027,7 +1028,7 @@ def reset_device(user_id):
         return jsonify({"success": False, "message": "Unauthorized. Admin only."}), 403
 
     conn = get_db()
-    cur = conn.cursor(dictionary=True)
+    cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("UPDATE users SET device_id = NULL WHERE id = %s", (user_id,))
     conn.commit()
     conn.close()
@@ -1057,7 +1058,7 @@ def list_subjects():
         params = (branch,)
 
     conn = get_db()
-    cur = conn.cursor(dictionary=True)
+    cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(query, params)
     rows = cur.fetchall()
     conn.close()
@@ -1073,7 +1074,7 @@ def admin_list_attendance():
         return jsonify({"success": False, "message": "Unauthorized. Admin only."}), 403
 
     conn = get_db()
-    cur = conn.cursor(dictionary=True)
+    cur = conn.cursor(cursor_factory=RealDictCursor)
     # Get all sessions with faculty name and attendance count
     cur.execute("""
         SELECT s.id, s.branch, s.semester, s.subject, s.start_time, s.expires_at,
@@ -1103,7 +1104,7 @@ def admin_all_student_attendance():
     semester = request.args.get("semester")
 
     conn = get_db()
-    cur = conn.cursor(dictionary=True)
+    cur = conn.cursor(cursor_factory=RealDictCursor)
     
     # We want to return all students along with their present count and total session count for their branch/sem
     query = """
@@ -1164,7 +1165,7 @@ def export_report():
         cutoff = now - timedelta(days=30)
 
     conn = get_db()
-    cur = conn.cursor(dictionary=True)
+    cur = conn.cursor(cursor_factory=RealDictCursor)
 
     query = """
         SELECT 
