@@ -858,30 +858,26 @@ def get_student_attendance_full():
     cur.execute("SELECT branch, semester FROM users WHERE id=%s", (student_id,))
     user = cur.fetchone()
     
-    # Get all subjects for this sem (case-insensitive)
-    cur.execute("""
-        SELECT name, code FROM subjects 
-        WHERE UPPER(branch) = UPPER(%s) AND UPPER(semester) = UPPER(%s)
-    """, (user["branch"], user["semester"]))
+    # Get all subjects for this sem
+    cur.execute("SELECT name, code FROM subjects WHERE branch=%s AND semester=%s", (user["branch"], user["semester"]))
     subjects = cur.fetchall()
     
     totals = []
     daily = []
     
     for r in subjects:
-        # Total sessions for this subject (match by name OR code, and branch/sem case-insensitively)
+        # Total sessions for this subject (match by name or code)
         cur.execute("""
             SELECT COUNT(*) as count FROM sessions 
-            WHERE (UPPER(subject) = UPPER(%s) OR UPPER(subject) = UPPER(%s)) 
-            AND UPPER(branch) = UPPER(%s) AND UPPER(semester) = UPPER(%s)
+            WHERE (subject=%s OR subject=%s) AND branch=%s AND semester=%s
         """, (r['name'], r['code'], user["branch"], user["semester"]))
         total = cur.fetchone()['count']
         
-        # Present count
+        # Present count (match by name or code)
         cur.execute("""
             SELECT COUNT(*) as count FROM attendance a 
             JOIN sessions s ON a.session_id = s.id 
-            WHERE a.student_id=%s AND (UPPER(s.subject) = UPPER(%s) OR UPPER(s.subject) = UPPER(%s))
+            WHERE a.student_id=%s AND (s.subject=%s OR s.subject=%s)
         """, (student_id, r['name'], r['code']))
         present = cur.fetchone()['count']
         
@@ -1193,7 +1189,7 @@ def admin_all_student_attendance():
     query = """
     SELECT u.id, u.name, u.roll_no, u.branch, u.semester,
            COUNT(DISTINCT a.id) as present_count,
-           (SELECT COUNT(*) FROM sessions s2 WHERE UPPER(s2.branch) = UPPER(u.branch) AND UPPER(s2.semester) = UPPER(u.semester)) as total_sessions
+           (SELECT COUNT(*) FROM sessions s2 WHERE s2.branch = u.branch AND s2.semester = u.semester) as total_sessions
     FROM users u
     LEFT JOIN attendance a ON CAST(a.student_id AS TEXT) = CAST(u.id AS TEXT)
     WHERE u.role = 'student'
