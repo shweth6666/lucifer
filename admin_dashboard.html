@@ -667,6 +667,20 @@
 
                 <!-- REPORTS TAB -->
                 <div id="reports" class="tab-content">
+                    <!-- Filter row -->
+                    <div style="display:flex; gap:12px; max-width:800px; margin: 0 auto 20px; align-items:flex-end;">
+                        <div style="flex:1;">
+                            <label style="font-size:13px; color:var(--text-dim);">Filter by Branch</label>
+                            <input type="text" id="reportBranch" placeholder="e.g. CSE"
+                                style="width:100%; padding:10px; border-radius:10px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:white; margin-top:5px;">
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-size:13px; color:var(--text-dim);">Filter by Semester</label>
+                            <input type="text" id="reportSemester" placeholder="e.g. S6"
+                                style="width:100%; padding:10px; border-radius:10px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:white; margin-top:5px;">
+                        </div>
+                    </div>
+
                     <!-- Download CSV card -->
                     <div class="stats-grid"
                         style="grid-template-columns: 1fr 1fr; max-width: 800px; margin: 0 auto 30px;">
@@ -683,20 +697,6 @@
                             <p style="font-size:13px; color:var(--text-dim); margin: 8px 0;">Last 30 days</p>
                             <button class="btn-primary" style="margin-top: 10px;" onclick="exportReport('monthly')">⬇
                                 Download CSV</button>
-                        </div>
-                    </div>
-
-                    <!-- Filter row -->
-                    <div style="display:flex; gap:12px; max-width:800px; margin: 0 auto 20px; align-items:flex-end;">
-                        <div style="flex:1;">
-                            <label style="font-size:13px; color:var(--text-dim);">Filter by Branch</label>
-                            <input type="text" id="reportBranch" placeholder="e.g. CSE"
-                                style="width:100%; padding:10px; border-radius:10px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:white; margin-top:5px;">
-                        </div>
-                        <div style="flex:1;">
-                            <label style="font-size:13px; color:var(--text-dim);">Filter by Semester</label>
-                            <input type="text" id="reportSemester" placeholder="e.g. S6"
-                                style="width:100%; padding:10px; border-radius:10px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:white; margin-top:5px;">
                         </div>
                     </div>
 

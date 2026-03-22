@@ -594,18 +594,30 @@ def download_faculty_report():
     days = 7 if report_type == "weekly" else 30
     since_date = (datetime.now() - timedelta(days=days)).isoformat()
 
+    branch = request.args.get("branch", "")
+    semester = request.args.get("semester", "")
+
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     
     # Get all attendance records for sessions by this faculty within the date range
-    cur.execute("""
+    query = """
         SELECT u.name as student_name, u.roll_no, s.subject, s.branch, s.semester, s.start_time, a.marked_at
         FROM attendance a
         JOIN sessions s ON a.session_id = s.id
         JOIN users u ON a.student_id = u.id
         WHERE s.faculty_id = %s AND s.start_time > %s
-        ORDER BY s.start_time DESC, u.roll_no ASC
-    """, (faculty_id, since_date))
+    """
+    params = [faculty_id, since_date]
+    if branch:
+        query += " AND s.branch = %s"
+        params.append(branch)
+    if semester:
+        query += " AND s.semester = %s"
+        params.append(semester)
+        
+    query += " ORDER BY s.start_time DESC, u.roll_no ASC"
+    cur.execute(query, params)
     records = cur.fetchall()
     conn.close()
 
@@ -1196,6 +1208,57 @@ def admin_all_student_attendance():
 
     return jsonify({"success": True, "students": results})
 
+
+# 📥 Student: Export Own Attendance as CSV
+@app.route("/api/student/report/export", methods=["GET"])
+@jwt_required()
+def download_student_report():
+    student_id = get_jwt_identity()
+    report_type = request.args.get("type", "weekly")
+    branch = request.args.get("branch", "")
+    semester = request.args.get("semester", "")
+    
+    days = 7 if report_type == "weekly" else 30
+    cutoff = datetime.now() - timedelta(days=days)
+
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    
+    query = """
+        SELECT s.subject, s.branch, s.semester, s.start_time, a.status, a.marked_at, u.name as faculty_name
+        FROM attendance a
+        JOIN sessions s ON a.session_id = s.id
+        LEFT JOIN users u ON s.faculty_id = u.id
+        WHERE a.student_id = %s AND s.start_time >= %s
+    """
+    params = [student_id, cutoff.isoformat()]
+    
+    if branch:
+        query += " AND s.branch = %s"
+        params.append(branch)
+    if semester:
+        query += " AND s.semester = %s"
+        params.append(semester)
+        
+    query += " ORDER BY s.start_time DESC"
+    cur.execute(query, params)
+    records = cur.fetchall()
+    conn.close()
+
+    si = io.StringIO()
+    cw = csv.writer(si)
+    cw.writerow(["Subject", "Branch", "Semester", "Session Date", "Status", "Marked Time", "Faculty"])
+    for r in records:
+        cw.writerow([
+            r["subject"], r["branch"], r["semester"], 
+            r["start_time"][:10], r["status"], r["marked_at"], r["faculty_name"]
+        ])
+
+    return Response(
+        si.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-disposition": f"attachment; filename=my_attendance_{report_type}.csv"}
+    )
 
 # 📥 Admin: Export Attendance Report as CSV
 @app.route("/api/admin/reports/export", methods=["POST"])
