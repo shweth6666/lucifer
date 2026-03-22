@@ -859,23 +859,27 @@ def get_student_attendance_full():
     user = cur.fetchone()
     
     # Get all subjects for this sem
-    cur.execute("SELECT name FROM subjects WHERE branch=%s AND semester=%s", (user["branch"], user["semester"]))
+    cur.execute("SELECT name, code FROM subjects WHERE branch=%s AND semester=%s", (user["branch"], user["semester"]))
     subjects = cur.fetchall()
     
     totals = []
     daily = []
     
     for r in subjects:
-        # Total sessions for this subject
-        cur.execute("SELECT COUNT(*) as count FROM sessions WHERE subject=%s AND branch=%s AND semester=%s", (r['name'], user["branch"], user["semester"]))
+        # Total sessions for this subject (match by name OR code)
+        cur.execute("""
+            SELECT COUNT(*) as count FROM sessions 
+            WHERE (UPPER(subject) = UPPER(%s) OR UPPER(subject) = UPPER(%s)) 
+            AND branch=%s AND semester=%s
+        """, (r['name'], r['code'], user["branch"], user["semester"]))
         total = cur.fetchone()['count']
         
         # Present count
         cur.execute("""
             SELECT COUNT(*) as count FROM attendance a 
             JOIN sessions s ON a.session_id = s.id 
-            WHERE a.student_id=%s AND s.subject=%s
-        """, (student_id, r['name']))
+            WHERE a.student_id=%s AND (UPPER(s.subject) = UPPER(%s) OR UPPER(s.subject) = UPPER(%s))
+        """, (student_id, r['name'], r['code']))
         present = cur.fetchone()['count']
         
         percent = (present / total * 100) if total > 0 else 0
