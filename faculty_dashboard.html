@@ -270,17 +270,30 @@
                 if (data.success) {
                     generateQR(data.qr_payload);
                     resetTimer();
+                } else {
+                    console.error("QR Error:", data.message);
+                    if (data.message === "Invalid session" || data.message === "Session expired") {
+                        alert("Session has ended or is invalid.");
+                        endSession();
+                    }
                 }
-            } catch (e) { console.error("QR Refresh failed", e); }
+            } catch (e) { 
+                console.error("QR Refresh failed", e);
+                document.getElementById('info-text').innerText = "Connection Error. Retrying...";
+            }
         }
 
         function generateQR(payload) {
-            const typeNumber = 0;
-            const errorCorrectionLevel = 'H';
-            const qr = qrcode(typeNumber, errorCorrectionLevel);
-            qr.addData(payload);
-            qr.make();
-            document.getElementById('qr-container').innerHTML = qr.createSvgTag(8);
+            try {
+                const qr = qrcode(0, 'L'); // Use Level L for larger capacity if needed
+                qr.addData(payload);
+                qr.make();
+                // createImgTag is often more reliable than SVG for legacy support
+                document.getElementById('qr-container').innerHTML = qr.createImgTag(8, 0); 
+            } catch (err) {
+                console.error("QR Generation failed", err);
+                document.getElementById('qr-container').innerHTML = "<p style='color:red;font-size:10px;'>QR Error</p>";
+            }
         }
 
         // 2. Fetch Live Attendance List
@@ -295,6 +308,8 @@
                     if (data.session) {
                         document.getElementById('info-text').innerText = `${data.session.branch} ${data.session.semester} | ${data.session.subject}`;
                     }
+                } else {
+                    document.getElementById('info-text').innerText = "Unable to load session data.";
                 }
             } catch (e) { console.error("Live list failed", e); }
         }
