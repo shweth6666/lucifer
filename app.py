@@ -95,13 +95,21 @@ def init_db():
 
     # 3. Attendance Table
     cur.execute("""
-   CREATE TABLE IF NOT EXISTS attendance (
+    CREATE TABLE IF NOT EXISTS attendance (
     id SERIAL PRIMARY KEY,
     student_id INTEGER,
     session_id INTEGER,
-    timestamp TEXT
+    status TEXT,
+    marked_at TEXT
 ); 
     """)
+
+    # 🔍 Migration: Ensure status and marked_at columns exist if table was created with old schema
+    try:
+        cur.execute("ALTER TABLE attendance ADD COLUMN IF NOT EXISTS status TEXT;")
+        cur.execute("ALTER TABLE attendance ADD COLUMN IF NOT EXISTS marked_at TEXT;")
+    except:
+        pass # Columns might already exist or DB might not support IF NOT EXISTS in ALTER
 
     # 4. Subjects Table
     cur.execute("""
@@ -1174,13 +1182,19 @@ def admin_all_student_attendance():
     cur = conn.cursor(cursor_factory=RealDictCursor)
     
     # We want to return all students along with their present count and total session count for their branch/sem
+    # Using a more robust query with explicit joins and group by to avoid subquery correlation issues
     query = """
     SELECT u.id, u.name, u.roll_no, u.branch, u.semester,
-           (SELECT COUNT(*) FROM attendance a WHERE a.student_id = u.id) as present_count,
-           (SELECT COUNT(*) FROM sessions s WHERE s.branch = u.branch AND s.semester = u.semester) as total_sessions
+           COUNT(DISTINCT a.id) as present_count,
+           (SELECT COUNT(*) FROM sessions s2 WHERE s2.branch = u.branch AND s2.semester = u.semester) as total_sessions
     FROM users u
+    LEFT JOIN attendance a ON CAST(a.student_id AS TEXT) = CAST(u.id AS TEXT)
     WHERE u.role = 'student'
     """
+    params = []
+    
+    # ... later we will handle where branch and semester match ...
+    group_by = " GROUP BY u.id, u.name, u.roll_no, u.branch, u.semester"
     params = []
 
     if branch:
@@ -1191,6 +1205,7 @@ def admin_all_student_attendance():
         query += " AND u.semester = %s"
         params.append(semester)
 
+    query += group_by
     query += " ORDER BY u.branch, u.semester, u.roll_no"
     
     cur.execute(query, tuple(params))
