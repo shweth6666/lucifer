@@ -617,8 +617,12 @@ def get_faculty_stats():
         total_students = cur.fetchone()['count'] or 1
         avg_attendance = (total_present / (len(sessions) * total_students)) * 100 if total_students > 0 else 0
 
-    # Recent sessions
-    cur.execute("SELECT id, subject, branch, semester, start_time FROM sessions WHERE faculty_id=%s ORDER BY start_time DESC LIMIT 5", (faculty_id,))
+    # Recent sessions with attendance count
+    cur.execute("""
+        SELECT s.id, s.subject, s.branch, s.semester, s.start_time, 
+        (SELECT count(*) FROM attendance WHERE session_id = s.id) as count 
+        FROM sessions s WHERE s.faculty_id=%s ORDER BY s.start_time DESC LIMIT 5
+    """, (faculty_id,))
     recent_sessions = [dict(r) for r in cur.fetchall()]
     
     # At risk students (simple logic: anybody below 75% in this faculty's subjects)

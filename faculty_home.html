@@ -642,20 +642,9 @@
                 <!-- Existing functionality elements below -->
 
 
-                <div class="section-title">
-                    Students At Risk (< 75%) <span style="font-size: 12px; color: var(--danger);">Top 5</span>
-                </div>
-                <div class="item-list" id="at-risk-list">
-                    <p style="text-align:center; color:#64748b; padding: 20px;">No students at risk. Great job!</p>
-                </div>
 
-                <div class="section-title" style="margin-top: 30px;">
-                    Today's Schedule
-                    <i data-lucide="calendar-days" style="color: var(--primary); width: 20px;"></i>
-                </div>
-                <div class="item-list" id="timetable-list" style="margin-bottom: 25px;">
-                    <p style="text-align:center; color:#64748b; padding: 20px;">No classes scheduled for today.</p>
-                </div>
+
+
 
                 <div class="section-title" style="margin-top: 30px; display: flex; justify-content: space-between;">
                     Recent Sessions
@@ -691,46 +680,7 @@
         document.getElementById('faculty-name-nav').innerText = userName;
         lucide.createIcons();
 
-        async function loadTimetable() {
-            try {
-                const res = await fetch(`${API_BASE}/faculty/timetable`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const data = await res.json();
-                if (data.success) {
-                    const list = document.getElementById('timetable-list');
-                    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-                    const today = days[new Date().getDay()];
-                    const todayClasses = data.timetable.filter(t => t.day_of_week === today);
 
-                    if (todayClasses.length > 0) {
-                        list.innerHTML = '';
-                        todayClasses.forEach(t => {
-                            list.innerHTML += `
-                                <div class="list-item" onclick="startClassFromTimetable('${t.branch}', '${t.semester}', '${t.subject_name}')">
-                                    <div class="item-info">
-                                        <div class="item-icon"><i data-lucide="clock"></i></div>
-                                        <div class="item-text">
-                                            <h4>${t.subject_name}</h4>
-                                            <p>${t.start_time} - ${t.end_time} • ${t.branch} ${t.semester}</p>
-                                        </div>
-                                    </div>
-                                    <i data-lucide="chevron-right" style="color: #64748b; width: 16px;"></i>
-                                </div>
-                            `;
-                        });
-                        lucide.createIcons();
-                    }
-                }
-            } catch (e) { console.error("Timetable failed", e); }
-        }
-
-        function startClassFromTimetable(branch, sem, sub) {
-            localStorage.setItem('auto_fill_branch', branch);
-            localStorage.setItem('auto_fill_semester', sem);
-            localStorage.setItem('auto_fill_subject', sub);
-            window.location.href = 'faculty_create_session.html';
-        }
 
         function toggleMenu() {
             const sidebar = document.getElementById('sidebar');
@@ -752,25 +702,7 @@
                     document.getElementById('total-sessions').innerText = data.stats.total_sessions;
                     document.getElementById('avg-attendance').innerText = data.stats.avg_attendance + "%";
 
-                    // Update Risk List
-                    const riskList = document.getElementById('at-risk-list');
-                    if (data.at_risk_students.length > 0) {
-                        riskList.innerHTML = '';
-                        data.at_risk_students.forEach(s => {
-                            riskList.innerHTML += `
-                                <div class="list-item">
-                                    <div class="item-info">
-                                        <div class="item-icon"><i data-lucide="user"></i></div>
-                                        <div class="item-text">
-                                            <h4>${s.name}</h4>
-                                            <p>${s.roll_no}</p>
-                                        </div>
-                                    </div>
-                                    <div class="risk-badge">${Math.round(s.percentage)}%</div>
-                                </div>
-                            `;
-                        });
-                    }
+
 
                     // Update Recent Sessions
                     const recentList = document.getElementById('recent-sessions-list');
@@ -807,7 +739,6 @@
         }
 
         loadDashboard();
-        loadTimetable();
     </script>
 </body>
 
