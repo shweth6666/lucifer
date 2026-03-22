@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 load_dotenv()
-import mysql.connector
+
 import math
 import csv
 import json
@@ -208,7 +208,7 @@ def init_db():
                         cur.execute("""
                             INSERT INTO users 
                             (username, password, role, name, branch, semester)
-                            VALUES (%s, %s, %s, %s, %s, %s)
+                            VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
                         """, (
                             row["username"],
                             generate_password_hash(row["password"]),
@@ -217,7 +217,7 @@ def init_db():
                             branch,
                             semester
                         ))
-                        faculty_id = cur.lastrowid
+                        faculty_id = cur.fetchone()['id']
                     else:
                         faculty_id = user_record["id"]
                     
@@ -367,12 +367,12 @@ def create_session():
     cur.execute(
         """
         INSERT INTO sessions (faculty_id, branch, semester, subject, start_time, latitude, longitude, expires_at, radius)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
         """,
         (faculty_id, branch, semester, subject, start_time, latitude, longitude, expires_at, radius)
     )
+    session_id = cur.fetchone()['id']
     conn.commit()
-    session_id = cur.lastrowid
     conn.close()
 
     return jsonify({"success": True, "session_id": session_id})
@@ -893,18 +893,21 @@ def create_user():
         cur.execute(
             """
             INSERT INTO users (username, password, role, name, roll_no, branch, semester)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id
             """,
             (username, hashed_password, role, name, roll_no, branch, semester)
         )
+        user_id = cur.fetchone()['id']
         conn.commit()
-        user_id = cur.lastrowid
         conn.close()
         return jsonify({"success": True, "message": "User created", "user_id": user_id}), 201
-    except mysql.connector.Error as err:
-        if err.errno == 1062:
+    except psycopg2.IntegrityError as err:
+        conn.rollback()
+        if err.pgcode == '23505':
             return jsonify({"success": False, "message": "Username already exists"}), 400
         return jsonify({"success": False, "message": str(err)}), 500
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
 
 
 # 🧑‍💼 Admin: Update User
