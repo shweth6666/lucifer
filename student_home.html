@@ -392,69 +392,58 @@
                     const perc = Math.round(statData.stats.overall_percentage);
                     document.getElementById('overall-perc').innerText = perc + "%";
                     document.getElementById('circle-perc').innerText = perc + "%";
-                }
-
-                // Fetch full attendance for graph
-                const attRes = await fetch(`${API_BASE}/student/attendance-full`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const attData = await attRes.json();
-                if (attData.success) {
-                    renderChart(attData.total_attendance);
+                    
+                    renderChart(statData.stats);
                 }
             } catch (e) { console.error(e); }
         }
 
-        function renderChart(data) {
+        function renderChart(stats) {
             const ctx = document.getElementById('attendanceChart').getContext('2d');
             
-            // Filter out Interval and Lunch from graph
-            const cleanData = data.filter(s => s.subject !== 'Interval' && s.subject !== 'Lunch Break');
-            
-            const labels = cleanData.map(s => s.subject);
-            const values = cleanData.map(s => Math.round(s.percentage));
-            const colors = values.map(v => v >= 75 ? '#10b981' : (v >= 60 ? '#f59e0b' : '#ef4444'));
+            const present = stats.present_count || 0;
+            const total = stats.total_sessions || 0;
+            const absent = Math.max(0, total - present);
 
             new Chart(ctx, {
-                type: 'bar',
+                type: 'doughnut',
                 data: {
-                    labels: labels,
+                    labels: ['Present', 'Absent'],
                     datasets: [{
-                        label: 'Attendance %',
-                        data: values,
-                        backgroundColor: colors,
-                        borderRadius: 8,
+                        data: [present, absent],
+                        backgroundColor: ['#10b981', '#ef4444'],
                         borderWidth: 0,
-                        barThickness: 25
+                        hoverOffset: 4
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    indexAxis: 'y', // Horizontal bars look better on mobile
+                    cutout: '75%',
                     plugins: {
-                        legend: { display: false },
+                        legend: { 
+                            display: true,
+                            position: 'bottom',
+                            labels: {
+                                color: '#94a3b8',
+                                padding: 20,
+                                font: {
+                                    family: "'Outfit', sans-serif",
+                                    size: 14
+                                }
+                            }
+                        },
                         tooltip: {
                             callbacks: {
-                                label: (ctx) => `Attendance: ${ctx.raw}%`
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            grid: { display: false, drawBorder: false },
-                            ticks: { color: '#94a3b8', font: { size: 10 } },
-                            max: 100,
-                            beginAtZero: true
-                        },
-                        y: {
-                            grid: { display: false, drawBorder: false },
-                            ticks: { 
-                                color: '#f8fafc', 
-                                font: { size: 11, weight: '600' },
-                                callback: function(value) {
-                                    const label = this.getLabelForValue(value);
-                                    return label.length > 15 ? label.substr(0, 15) + '...' : label;
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed !== null) {
+                                        label += context.parsed + ' Classes';
+                                    }
+                                    return label;
                                 }
                             }
                         }
