@@ -582,7 +582,55 @@ def get_faculty_dashboard():
         "recent_attendance": recent_attendance
     })
 
+import io
+from flask import Response
+
 # --- Faculty: Stats for Dashboard ---
+@app.route("/api/faculty/report", methods=["GET"])
+@jwt_required()
+def download_faculty_report():
+    faculty_id = get_jwt_identity()
+    report_type = request.args.get("type", "weekly") # weekly or monthly
+    days = 7 if report_type == "weekly" else 30
+    since_date = (datetime.now() - timedelta(days=days)).isoformat()
+
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    
+    # Get all attendance records for sessions by this faculty within the date range
+    cur.execute("""
+        SELECT u.name as student_name, u.roll_no, s.subject, s.branch, s.semester, s.start_time, a.marked_at
+        FROM attendance a
+        JOIN sessions s ON a.session_id = s.id
+        JOIN users u ON a.student_id = u.id
+        WHERE s.faculty_id = %s AND s.start_time > %s
+        ORDER BY s.start_time DESC, u.roll_no ASC
+    """, (faculty_id, since_date))
+    records = cur.fetchall()
+    conn.close()
+
+    # Generate CSV
+    si = io.StringIO()
+    cw = csv.writer(si)
+    cw.writerow(["Student Name", "Roll No", "Subject", "Branch", "Semester", "Session Date", "Marked Time"])
+    for r in records:
+        cw.writerow([
+            r["student_name"], 
+            r["roll_no"], 
+            r["subject"], 
+            r["branch"], 
+            r["semester"], 
+            r["start_time"][:10], 
+            r.get("marked_at", "N/A")
+        ])
+
+    output = si.getvalue()
+    return Response(
+        output,
+        mimetype="text/csv",
+        headers={"Content-disposition": f"attachment; filename=attendance_report_{report_type}.csv"}
+    )
+
 @app.route("/api/faculty/stats", methods=["GET"])
 @jwt_required()
 def get_faculty_stats():
