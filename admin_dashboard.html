@@ -387,22 +387,22 @@
             </div>
 
             <ul class="nav-links">
-                <li class="nav-item active" onclick="switchTab('overview')">
+                <li class="nav-item active" onclick="switchTab('overview', this)">
                     <i data-lucide="layout-dashboard"></i> Overview
                 </li>
-                <li class="nav-item" onclick="switchTab('users')">
+                <li class="nav-item" onclick="switchTab('users', this)">
                     <i data-lucide="users"></i> User Management
                 </li>
-                <li class="nav-item" onclick="switchTab('faculty_dash')">
+                <li class="nav-item" onclick="switchTab('faculty_dash', this)">
                     <i data-lucide="presentation"></i> Faculty Dashboard
                 </li>
-                <li class="nav-item" onclick="switchTab('student_att')">
+                <li class="nav-item" onclick="switchTab('student_att', this)">
                     <i data-lucide="clipboard-list"></i> Student Attendance
                 </li>
-                <li class="nav-item" onclick="switchTab('subjects')">
+                <li class="nav-item" onclick="switchTab('subjects', this)">
                     <i data-lucide="book-open"></i> Subject Registry
                 </li>
-                <li class="nav-item" onclick="switchTab('reports')">
+                <li class="nav-item" onclick="switchTab('reports', this)">
                     <i data-lucide="bar-chart-3"></i> Attendance Reports
                 </li>
             </ul>
@@ -893,12 +893,12 @@
             window.location.href = 'login.html';
         }
 
-        function switchTab(tabId) {
+        function switchTab(tabId, el) {
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
 
             document.getElementById(tabId).classList.add('active');
-            event.currentTarget.classList.add('active');
+            if (el) el.classList.add('active');
 
             const titles = {
                 overview: ["System Overview", "Live metrics and system status at a glance."],
@@ -1235,9 +1235,9 @@
                     headers: { 'Authorization': `Bearer ${TOKEN}` }
                 });
                 const data = await res.json();
-                if (data.success) {
+                if (data.success && Array.isArray(data.sessions)) {
                     const now = new Date();
-                    const activeSessions = data.sessions.filter(s => new Date(s.expires_at) > now);
+                    const activeSessions = data.sessions.filter(s => s.expires_at && new Date(s.expires_at) > now);
                     if (activeSessions.length > 0) {
                         tbody.innerHTML = activeSessions.map(s => `
                             <tr style="cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='rgba(99,102,241,0.05)'" onmouseleave="this.style.background='none'" onclick="viewLiveSession(${s.id})">

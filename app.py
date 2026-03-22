@@ -1150,7 +1150,7 @@ def admin_list_attendance():
         FROM sessions s
         LEFT JOIN users u ON s.faculty_id = u.id
         LEFT JOIN attendance a ON a.session_id = s.id
-        GROUP BY s.id
+        GROUP BY s.id, u.name, s.branch, s.semester, s.subject, s.start_time, s.expires_at
         ORDER BY s.start_time DESC
         LIMIT 100
     """)
