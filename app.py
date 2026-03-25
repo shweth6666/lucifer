@@ -1111,33 +1111,89 @@ def reset_device(user_id):
     return jsonify({"success": True, "message": "Device binding reset. Student can now login from a new device."})
 
 
-# 🧑‍💼 Admin: List Subjects
-@app.route("/api/admin/subjects", methods=["GET"])
+# 🧑‍💼 Admin: Subjects Management (List, Add, Delete)
+@app.route("/api/admin/subjects", methods=["GET", "POST"])
 @jwt_required()
-def list_subjects():
+def subjects_mgmt():
     claims = get_jwt()
     if claims.get("role") not in ["admin", "faculty"]:
         return jsonify({"success": False, "message": "Unauthorized."}), 403
 
-    branch = request.args.get("branch")
-    semester = request.args.get("semester")
+    if request.method == "GET":
+        branch = request.args.get("branch")
+        semester = request.args.get("semester")
 
-    query = "SELECT * FROM subjects"
-    params = []
-    
-    if branch and semester:
-        query += " WHERE branch = %s AND semester = %s"
-        params = (branch, semester)
-    elif branch:
-        query += " WHERE branch = %s"
-        params = (branch,)
+        query = "SELECT * FROM subjects"
+        params = []
+        
+        if branch and semester:
+            query += " WHERE branch = %s AND semester = %s"
+            params = (branch, semester)
+        elif branch:
+            query += " WHERE branch = %s"
+            params = (branch,)
 
-    conn = get_db()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute(query, params)
-    rows = cur.fetchall()
-    conn.close()
-    return jsonify({"success": True, "subjects": [dict(r) for r in rows]})
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute(query, params)
+        rows = cur.fetchall()
+        conn.close()
+        return jsonify({"success": True, "subjects": [dict(r) for r in rows]})
+
+    elif request.method == "POST":
+        if claims.get("role") != "admin":
+            return jsonify({"success": False, "message": "Unauthorized. Admin only can add subjects."}), 403
+
+        data = request.json
+        code = data.get("code")
+        name = data.get("name")
+        branch = data.get("branch")
+        semester = data.get("semester")
+
+        if not code or not name or not branch or not semester:
+            return jsonify({"success": False, "message": "Missing required fields"}), 400
+
+        try:
+            conn = get_db()
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            cur.execute(
+                "INSERT INTO subjects (code, name, branch, semester) VALUES (%s, %s, %s, %s) RETURNING id",
+                (code, name, branch, semester)
+            )
+            subject_id = cur.fetchone()['id']
+            conn.commit()
+            conn.close()
+            return jsonify({"success": True, "message": "Subject added", "subject_id": subject_id}), 201
+        except Exception as e:
+            if 'conn' in locals():
+                conn.rollback()
+                conn.close()
+            return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route("/api/admin/subjects/<int:id>", methods=["DELETE"])
+@jwt_required()
+def delete_subject(id):
+    claims = get_jwt()
+    if claims.get("role") != "admin":
+        return jsonify({"success": False, "message": "Unauthorized. Admin only."}), 403
+
+    try:
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("DELETE FROM subjects WHERE id = %s", (id,))
+        conn.commit()
+        
+        if cur.rowcount == 0:
+            conn.close()
+            return jsonify({"success": False, "message": "Subject not found"}), 404
+
+        conn.close()
+        return jsonify({"success": True, "message": "Subject deleted"})
+    except Exception as e:
+        if 'conn' in locals():
+            conn.rollback()
+            conn.close()
+        return jsonify({"success": False, "message": str(e)}), 500
 
 
 # 📊 Admin: View All Attendance Sessions
@@ -1364,7 +1420,9 @@ def not_found(e):
 @app.errorhandler(Exception)
 def handle_exception(e):
     print(f"Server Error: {e}")
-    return jsonify({"success": False, "message": "Internal server error", "error": str(e)}), 500
+    # Return actual error message so it's visible in frontend alerts
+    errorMessage = f"Server Error: {str(e)}"
+    return jsonify({"success": False, "message": errorMessage, "error": str(e)}), 500
 
 # 🌐 Serve Static & HTML Files
 @app.route("/")
